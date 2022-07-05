@@ -78,6 +78,15 @@ class DFA {
     return partition_0;
   }
 
+  size_t MinimizedSize() {
+    partition_t partition_0 = Minimize();
+    size_t size = 0;
+    for (int i = 0; i < N; i++) {
+      if (partition_0[i] == i) size++;
+    }
+    return size;
+  }
+
   std::map<size_t,std::vector<size_t>> PartitionToMap(const partition_t& partition_0) {
     std::map<size_t,std::vector<size_t>> m;
     for (int i = 0; i < N; i++) {
@@ -118,7 +127,7 @@ void ConvertDFA(const char str[64]) {
   std::chrono::time_point<std::chrono::system_clock> start, end;
   start = std::chrono::system_clock::now();
   for (int i = 0; i < 10000; i++) {
-    dfa.Minimize();
+    dfa.MinimizedSize();
   }
   end = std::chrono::system_clock::now();
   std::cout << "dfa.Minimize(): " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms" << std::endl;
