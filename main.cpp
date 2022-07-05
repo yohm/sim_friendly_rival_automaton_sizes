@@ -113,11 +113,9 @@ std::array<std::array<size_t,4>, 64> ConstructDelta() {
   }
   return delta;
 }
-std::array<std::array<size_t,4>, 64> g_delta;
+const std::array<std::array<size_t,4>, 64> g_delta = ConstructDelta();
 
 int MinimizedDFASize(const char str[64]) {
-  // auto delta = ConstructDelta();
-
   std::array<size_t,64> F;
   for (size_t i = 0; i < 64; i++) {
     F[i] = (str[i] == 'c') ? 1 : 0;
@@ -173,7 +171,6 @@ int main(int argc, char* argv[]) {
 
   std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
-  g_delta = ConstructDelta();
   automaton_sizes_t sizes;
   sizes.fill(0);
   for (const auto& line : lines) {
