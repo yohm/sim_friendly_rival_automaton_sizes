@@ -1,0 +1,6 @@
+[submodule "icecream-cpp"]
+	path = icecream-cpp
+	url = https://github.com/renatoGarcia/icecream-cpp.git
+[submodule "eigen"]
+	path = eigen
+	url = https://gitlab.com/libeigen/eigen.git
