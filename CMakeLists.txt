@@ -12,8 +12,8 @@ link_directories(/usr/local/opt/lapack/lib)
 set(SOURCE_FILES Action.cpp Action.hpp DirectedGraph.hpp DirectedGraph.cpp
         UnionFind.hpp Partition.hpp StrategyM3.hpp StrategyM3.cpp)
 
-add_executable(main main.cpp ${SOURCE_FILES})
-target_link_libraries(main PRIVATE MPI::MPI_CXX Eigen3::Eigen lapacke)
+add_executable(main main.cpp)
+target_link_libraries(main PRIVATE MPI::MPI_CXX)
 
 add_executable(test_automaton_size test_automaton_size.cpp ${SOURCE_FILES})
 target_link_libraries(test_automaton_size PRIVATE Eigen3::Eigen lapacke)

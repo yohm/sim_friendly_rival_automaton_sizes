@@ -2,10 +2,10 @@
 #include <fstream>
 #include <vector>
 #include <array>
+#include <map>
 #include <chrono>
 #include <mpi.h>
 #include "icecream.hpp"
-#include "StrategyM3.hpp"
 
 
 template <int N, int Z>  // N: number of states, Z: number of alphabets
