@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
 
   auto read_lines_and_push_task = [&fin](caravan::Queue& q) -> uint64_t {
     json lines;
-    const size_t max_line_size = 100;
+    const size_t max_line_size = 512;
 
     std::string line;
     while (std::getline(fin, line)) {
@@ -190,7 +190,7 @@ int main(int argc, char* argv[]) {
   std::function<void(caravan::Queue&)> on_init = [&fin,&read_lines_and_push_task,total_size](caravan::Queue& q) {
     while(fin) {
       uint64_t task_id = read_lines_and_push_task(q);
-      IC(task_id);
+      // IC(task_id);
       if (task_id >= total_size) {
         break;
       }
@@ -200,7 +200,6 @@ int main(int argc, char* argv[]) {
   // After the task was executed at a worker process, its result is returned to the master process.
   // When the master process receives the result, this callback function is called at the master process.
   std::function<void(int64_t, const json&, const json&, caravan::Queue&)> on_result_receive = [&fin,&read_lines_and_push_task,&total_sizes](int64_t task_id, const json& input, const json& output, caravan::Queue& q) {
-    std::cerr << output << std::endl;
     auto v = output.get<std::vector<size_t>>();
     for (size_t i = 0; i < v.size(); i++) {
       total_sizes[i] += v[i];
