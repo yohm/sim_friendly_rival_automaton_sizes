@@ -6,7 +6,10 @@
 #include <chrono>
 #include <mpi.h>
 #include "icecream.hpp"
+#include "caravan.hpp"
 
+
+using json = nlohmann::json;
 
 template <int N, int Z>  // N: number of states, Z: number of alphabets
 class DFA {
@@ -151,46 +154,93 @@ automaton_sizes_t AutomatonSizes(const std::string& line) {
 
 int main(int argc, char* argv[]) {
   MPI_Init(&argc, &argv);
-  std::cout << "Hello, MPI World!" << std::endl;
 
   int my_rank, total_size;
   MPI_Comm_size(MPI_COMM_WORLD, &total_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-  std::cout << "my_rank, total_size: " << my_rank << ", " << total_size << std::endl;
 
-  std::ifstream fin("../friendly_rival_10k");
-  std::vector<std::string> lines;
-  while (fin) {
-    std::string s;
-    fin >> s;
-    if (fin) {
-      lines.push_back(s);
+  std::ifstream fin;
+  if (my_rank == 0) {
+    fin.open("../friendly_rival_10k");
+    if (!fin) {
+      MPI_Abort(MPI_COMM_WORLD, 1);
     }
   }
-  // IC(lines);
+
+  automaton_sizes_t total_sizes;
+  total_sizes.fill(0);
+
+  auto read_lines_and_push_task = [&fin](caravan::Queue& q) -> uint64_t {
+    json lines;
+    const size_t max_line_size = 100;
+
+    std::string line;
+    while (std::getline(fin, line)) {
+      if (line.empty()) break;
+      lines.emplace_back(line);
+      if (lines.size() >= max_line_size) {
+        break;
+      }
+    }
+    return q.Push(lines);
+  };
+
+  // define a pre-process: create json object that contains parameters of tasks
+  // This function is called only at the master process.
+  std::function<void(caravan::Queue&)> on_init = [&fin,&read_lines_and_push_task,total_size](caravan::Queue& q) {
+    while(fin) {
+      uint64_t task_id = read_lines_and_push_task(q);
+      IC(task_id);
+      if (task_id >= total_size) {
+        break;
+      }
+    }
+  };
+
+  // After the task was executed at a worker process, its result is returned to the master process.
+  // When the master process receives the result, this callback function is called at the master process.
+  std::function<void(int64_t, const json&, const json&, caravan::Queue&)> on_result_receive = [&fin,&read_lines_and_push_task,&total_sizes](int64_t task_id, const json& input, const json& output, caravan::Queue& q) {
+    std::cerr << output << std::endl;
+    auto v = output.get<std::vector<size_t>>();
+    for (size_t i = 0; i < v.size(); i++) {
+      total_sizes[i] += v[i];
+    }
+    if (fin) {
+      read_lines_and_push_task(q);
+    }
+  };
+
+  // Define the function which is executed at a worker process.
+  // The input parameter for the task is given as the argument.
+  std::function<json(const json& input)> do_task = [](const json& input) {
+    automaton_sizes_t sizes;
+    sizes.fill(0);
+    for (const auto& j: input) {
+      std::string line = j.get<std::string>();
+      automaton_sizes_t r = AutomatonSizes(line);
+      for (size_t i = 0; i < r.size(); ++i) {
+        sizes[i] += r[i];
+      }
+    }
+
+    json output = sizes;
+    return output;
+  };
 
   std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
-  automaton_sizes_t sizes;
-  sizes.fill(0);
-  for (const auto& line : lines) {
-    automaton_sizes_t r = AutomatonSizes(line);
-    // IC(r);
-    for (size_t i = 0; i < r.size(); ++i) {
-      sizes[i] += r[i];
-    }
-  }
+  caravan::Start(on_init, on_result_receive, do_task, MPI_COMM_WORLD);
 
   std::chrono::system_clock::time_point end = std::chrono::system_clock::now();
   std::chrono::duration<double> elapsed_seconds = end - start;
 
-  size_t sum = 0;
-  double total = 0.0;
   if (my_rank == 0) {
+    size_t sum = 0;
+    double total = 0.0;
     for (int i = 0; i < 65; i++) {
-      std::cout << i << ' ' << sizes[i] << std::endl;
-      sum += sizes[i];
-      total += i * sizes[i];
+      std::cout << i << ' ' << total_sizes[i] << std::endl;
+      sum += total_sizes[i];
+      total += i * total_sizes[i];
     }
     IC(sum, total/sum, elapsed_seconds.count(), elapsed_seconds.count()/sum);
   }
