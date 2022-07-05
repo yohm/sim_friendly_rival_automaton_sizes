@@ -12,15 +12,15 @@
 template <int N, int Z>  // N: number of states, Z: number of alphabets
 class DFA {
   public:
-  DFA(std::set<size_t> f, std::array<std::array<size_t,Z>, N> _delta) :
+  DFA(std::array<size_t,N> f, std::array<std::array<size_t,Z>, N> _delta) :
   F(std::move(f)), delta(std::move(_delta)) {
     // validity check
-    for (auto i: F) { assert(i < N); }
+    for (auto i: F) { assert(i == 0 || i == 1); }
     for (const auto& a: delta) {
       for (auto i: a) { assert(i < N); }
     }
   };
-  std::set<size_t> F;  // set of final states
+  std::array<size_t,N> F;  // set of final states
   std::array< std::array<size_t,Z>,N > delta; // state-transition function.
   // represented by NxZ two-dim vector. delta[q][s] = transition from state-q by input s
 
@@ -40,13 +40,17 @@ class DFA {
     partition_0.fill(-1);
 
     // initialize grouping by the final state
-    int accept_idx = *F.begin(), reject_idx = -1;
-    for (int i: F) {
-      partition_0[i] = accept_idx;
-    }
+    int accept_idx = -1, reject_idx = -1;
     for (int i = 0; i < N; i++) {
-      if (partition_0[i] < 0) {
-        if (reject_idx < 0) reject_idx = i;
+      if (F[i]) {
+        if (accept_idx == -1) {
+          accept_idx = i;
+        }
+        partition_0[i] = accept_idx;
+      } else {
+        if (reject_idx == -1) {
+          reject_idx = i;
+        }
         partition_0[i] = reject_idx;
       }
     }
@@ -83,8 +87,7 @@ class DFA {
   }
 };
 
-
-void ConvertDFA(const char str[64]) {
+std::array<std::array<size_t,4>, 64> ConstructDelta() {
   std::array<std::array<size_t,4>, 64> delta;
   using bt = std::bitset<6>;
   for (int i = 0; i < 64; i++) {
@@ -100,12 +103,16 @@ void ConvertDFA(const char str[64]) {
       n3.to_ulong()
     };
   }
+  return delta;
+}
 
-  std::set<size_t> F;
+
+void ConvertDFA(const char str[64]) {
+  auto delta = ConstructDelta();
+
+  std::array<size_t,64> F;
   for (size_t i = 0; i < 64; i++) {
-    if (str[i] == 'c') {
-      F.insert(i);
-    }
+    F[i] = (str[i] == 'c') ? 1 : 0;
   }
   DFA<64,4> dfa(F, delta);
   std::chrono::time_point<std::chrono::system_clock> start, end;
@@ -116,9 +123,9 @@ void ConvertDFA(const char str[64]) {
   end = std::chrono::system_clock::now();
   std::cout << "dfa.Minimize(): " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms" << std::endl;
 
-  //auto partition = dfa.Minimize();
-  // auto m = dfa.PartitionToMap(partition);
-  // IC(m, m.size());
+  auto partition = dfa.Minimize();
+  auto m = dfa.PartitionToMap(partition);
+  IC(m, m.size());
 }
 
 
@@ -135,8 +142,8 @@ int main(int argc, char* argv[]) {
   }
   end = std::chrono::system_clock::now();
   std::cout << "MinimizeDFA: " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << "ms" << std::endl;
-  // auto dfa = str.MinimizeDFA(true);
-  // IC(dfa.to_map(), dfa.to_map().size());
+  auto dfa = str.MinimizeDFA(true);
+  IC(dfa.to_map(), dfa.to_map().size());
 
   ConvertDFA(line.c_str());
 
