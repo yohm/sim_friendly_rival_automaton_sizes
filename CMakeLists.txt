@@ -12,6 +12,8 @@ link_directories(/usr/local/opt/lapack/lib)
 add_executable(main main.cpp)
 target_link_libraries(main PRIVATE MPI::MPI_CXX)
 
+add_executable(minimum minimum.cpp)
+
 set(SOURCE_FILES Action.cpp Action.hpp DirectedGraph.hpp DirectedGraph.cpp
         UnionFind.hpp Partition.hpp StrategyM3.hpp StrategyM3.cpp)
 
