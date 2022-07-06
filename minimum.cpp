@@ -5,6 +5,7 @@
 #include <map>
 #include <chrono>
 #include <bitset>
+#include <cassert>
 
 
 template <int N, int Z>  // N: number of states, Z: number of alphabets
