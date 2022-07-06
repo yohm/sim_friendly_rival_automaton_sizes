@@ -4,6 +4,7 @@
 #include <array>
 #include <map>
 #include <chrono>
+#include <bitset>
 #include <mpi.h>
 #include "icecream.hpp"
 #include "caravan.hpp"
@@ -159,9 +160,17 @@ int main(int argc, char* argv[]) {
   MPI_Comm_size(MPI_COMM_WORLD, &total_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
+  if (argc != 2) {
+    if (my_rank == 0) {
+      std::cerr << "Usage: " << argv[0] << " <input_file>" << std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 1);
+    return 1;
+  }
+
   std::ifstream fin;
   if (my_rank == 0) {
-    fin.open("../friendly_rival_10k");
+    fin.open(argv[1]);
     if (!fin) {
       MPI_Abort(MPI_COMM_WORLD, 1);
     }
@@ -172,13 +181,20 @@ int main(int argc, char* argv[]) {
 
   auto read_lines_and_push_task = [&fin](caravan::Queue& q) -> uint64_t {
     json lines;
+    size_t num_strategies = 0ul;
     const size_t max_line_size = 512;
+    const size_t max_num_strategies = 1ul << 22;
 
     std::string line;
     while (std::getline(fin, line)) {
       if (line.empty()) break;
       lines.emplace_back(line);
-      if (lines.size() >= max_line_size) {
+      size_t n = 1ul;
+      for (size_t i = 0; i < line.size(); i++) {
+        if (line[i] == '*') { n = n << 1; }
+      }
+      num_strategies += n;
+      if (lines.size() >= max_line_size || num_strategies >= max_num_strategies) {
         break;
       }
     }
