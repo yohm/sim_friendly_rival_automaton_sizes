@@ -182,8 +182,8 @@ int main(int argc, char* argv[]) {
   auto read_lines_and_push_task = [&fin](caravan::Queue& q) -> uint64_t {
     json lines;
     size_t num_strategies = 0ul;
-    const size_t max_line_size = 512;
-    const size_t max_num_strategies = 1ul << 22;
+    const size_t max_line_size = 4096;
+    const size_t max_num_strategies = 1ul << 20;
 
     std::string line;
     while (std::getline(fin, line)) {
@@ -198,6 +198,7 @@ int main(int argc, char* argv[]) {
         break;
       }
     }
+    // std::cerr << num_strategies << ' ' << lines.size() << std::endl;
     return q.Push(lines);
   };
 
@@ -230,12 +231,17 @@ int main(int argc, char* argv[]) {
   std::function<json(const json& input)> do_task = [](const json& input) {
     automaton_sizes_t sizes;
     sizes.fill(0);
-    for (const auto& j: input) {
-      std::string line = j.get<std::string>();
-      automaton_sizes_t r = AutomatonSizes(line);
+    const std::vector<std::string> lines = input.get<std::vector<std::string>>();
+    #pragma omp parallel for shared(lines,sizes) schedule(dynamic,1)
+    for (size_t i = 0; i < lines.size(); i++) {
+      automaton_sizes_t r = AutomatonSizes(lines[i]);
       for (size_t i = 0; i < r.size(); ++i) {
+        #pragma omp atomic
         sizes[i] += r[i];
       }
+    }
+    for (const auto& j: input) {
+      std::string line = j.get<std::string>();
     }
 
     json output = sizes;
