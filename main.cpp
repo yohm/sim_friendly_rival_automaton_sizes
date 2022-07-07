@@ -146,6 +146,23 @@ void ExpandWildcard(const std::string& line, automaton_sizes_t& automaton_sizes)
   automaton_sizes[size]++;
 }
 
+void AddExpandedLines(const std::string &line, std::vector<std::string>& lines, int level) {
+  if (level == 0) {
+    lines.push_back(line);
+    return;
+  }
+  for (int i = 0; i < line.size(); i++) {
+    if (line[i] == '*') {
+      std::string temp = line;
+      temp[i] = 'c';
+      AddExpandedLines(temp, lines, level-1);
+      temp[i] = 'd';
+      AddExpandedLines(temp, lines, level-1);
+      return;
+    }
+  }
+}
+
 automaton_sizes_t AutomatonSizes(const std::string& line) {
   automaton_sizes_t sizes;
   sizes.fill(0);
@@ -244,9 +261,26 @@ int main(int argc, char* argv[]) {
   // Define the function which is executed at a worker process.
   // The input parameter for the task is given as the argument.
   std::function<json(const json& input)> do_task = [](const json& input) {
+    std::vector<std::string> lines;
+    for (const json& j : input) {
+      std::string line = j.get<std::string>();
+      int n_ast = 0;
+      for (size_t i = 0; i < line.size(); i++) {
+        if (line[i] == '*') { n_ast++; }
+      }
+
+      int max = 20;
+      if (n_ast > max) {
+        AddExpandedLines(line, lines, n_ast-max);
+        // IC(line, n_ast);
+      }
+      else {
+        lines.push_back(line);
+      }
+    }
+
     automaton_sizes_t sizes;
     sizes.fill(0);
-    const std::vector<std::string> lines = input.get<std::vector<std::string>>();
     #pragma omp parallel for shared(lines,sizes) schedule(dynamic,1)
     for (size_t i = 0; i < lines.size(); i++) {
       automaton_sizes_t r = AutomatonSizes(lines[i]);
