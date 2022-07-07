@@ -6,6 +6,7 @@
 #include <chrono>
 #include <bitset>
 #include <mpi.h>
+#include <omp.h>
 #include "icecream.hpp"
 #include "caravan.hpp"
 
@@ -159,6 +160,12 @@ int main(int argc, char* argv[]) {
   int my_rank, total_size;
   MPI_Comm_size(MPI_COMM_WORLD, &total_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+  if (my_rank == 0) {
+    int num_threads = omp_get_max_threads();
+    std::cerr << "total_size = " << total_size << std::endl;
+    std::cerr << "num_threads = " << num_threads << std::endl;
+  }
 
   if (argc != 2) {
     if (my_rank == 0) {
