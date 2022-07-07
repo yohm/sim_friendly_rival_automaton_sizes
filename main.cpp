@@ -176,14 +176,16 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+
   automaton_sizes_t total_sizes;
   total_sizes.fill(0);
 
-  auto read_lines_and_push_task = [&fin](caravan::Queue& q) -> uint64_t {
+  auto read_lines_and_push_task = [&fin,&start](caravan::Queue& q) -> uint64_t {
     json lines;
     size_t num_strategies = 0ul;
-    const size_t max_line_size = 4096;
-    const size_t max_num_strategies = 1ul << 20;
+    const size_t max_line_size = 8192;
+    const size_t max_num_strategies = 1ul << 22;
 
     std::string line;
     while (std::getline(fin, line)) {
@@ -199,7 +201,13 @@ int main(int argc, char* argv[]) {
       }
     }
     // std::cerr << num_strategies << ' ' << lines.size() << std::endl;
-    return q.Push(lines);
+    uint64_t task_id = q.Push(lines);
+    if (task_id % 100000 == 0) {
+      std::chrono::system_clock::time_point end = std::chrono::system_clock::now();
+      std::chrono::duration<double> elapsed_seconds = end - start;
+      std::cerr << "task_id:" << task_id << ' ' << elapsed_seconds.count() << std::endl;
+    }
+    return task_id;
   };
 
   // define a pre-process: create json object that contains parameters of tasks
@@ -222,7 +230,7 @@ int main(int argc, char* argv[]) {
       total_sizes[i] += v[i];
     }
     if (fin) {
-      read_lines_and_push_task(q);
+      uint64_t task_id = read_lines_and_push_task(q);
     }
   };
 
@@ -248,7 +256,6 @@ int main(int argc, char* argv[]) {
     return output;
   };
 
-  std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
   caravan::Start(on_init, on_result_receive, do_task, MPI_COMM_WORLD);
 
