@@ -285,7 +285,7 @@ int main(int argc, char* argv[]) {
         if (line[i] == '*') { n_ast++; }
       }
 
-      int max = 20;
+      int max = 18;
       if (n_ast > max) {
         AddExpandedLines(line, lines, n_ast-max);
         // IC(line, n_ast);
