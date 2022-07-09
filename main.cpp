@@ -289,9 +289,6 @@ int main(int argc, char* argv[]) {
         sizes[i] += r[i];
       }
     }
-    for (const auto& j: input) {
-      std::string line = j.get<std::string>();
-    }
 
     json output = sizes;
     return output;
