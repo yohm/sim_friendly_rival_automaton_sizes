@@ -119,6 +119,7 @@ std::array<std::array<size_t,4>, 64> ConstructDelta() {
   return delta;
 }
 const std::array<std::array<size_t,4>, 64> g_delta = ConstructDelta();
+size_t output_automaton_size_max = 0;
 
 int MinimizedDFASize(const char str[64]) {
   std::array<size_t,64> F;
@@ -131,19 +132,30 @@ int MinimizedDFASize(const char str[64]) {
 
 using automaton_sizes_t = std::array<size_t, 65>;
 
-void ExpandWildcard(const std::string& line, automaton_sizes_t& automaton_sizes) {
+void ExpandWildcard(const std::string& line, automaton_sizes_t& automaton_sizes, std::vector<std::string>& found) {
   for (int i = 0; i < line.size(); i++) {
     if (line[i] == '*') {
       std::string temp = line;
       temp[i] = 'c';
-      ExpandWildcard(temp, automaton_sizes);
+      ExpandWildcard(temp, automaton_sizes, found);
       temp[i] = 'd';
-      ExpandWildcard(temp, automaton_sizes);
+      ExpandWildcard(temp, automaton_sizes, found);
       return;
     }
   }
   int size = MinimizedDFASize(line.c_str());
   automaton_sizes[size]++;
+  if (size <= output_automaton_size_max) {
+    found.emplace_back(line);
+  }
+}
+
+automaton_sizes_t AutomatonSizes(const std::string& line, std::vector<std::string>& found) {
+  automaton_sizes_t sizes;
+  sizes.fill(0);
+
+  ExpandWildcard(line, sizes, found);
+  return sizes;
 }
 
 void AddExpandedLines(const std::string &line, std::vector<std::string>& lines, int level) {
@@ -163,14 +175,6 @@ void AddExpandedLines(const std::string &line, std::vector<std::string>& lines, 
   }
 }
 
-automaton_sizes_t AutomatonSizes(const std::string& line) {
-  automaton_sizes_t sizes;
-  sizes.fill(0);
-
-  ExpandWildcard(line, sizes);
-  return sizes;
-}
-
 int main(int argc, char* argv[]) {
   MPI_Init(&argc, &argv);
 
@@ -184,21 +188,25 @@ int main(int argc, char* argv[]) {
     std::cerr << "num_threads = " << num_threads << std::endl;
   }
 
-  if (argc != 2) {
+  if (argc != 3) {
     if (my_rank == 0) {
-      std::cerr << "Usage: " << argv[0] << " <input_file>" << std::endl;
+      std::cerr << "Usage: " << argv[0] << " <input_file> <output_automaton_size_max>" << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
     return 1;
   }
 
   std::ifstream fin;
+  std::ofstream fout;
   if (my_rank == 0) {
     fin.open(argv[1]);
     if (!fin) {
       MPI_Abort(MPI_COMM_WORLD, 1);
     }
+
+    fout.open("automatons");
   }
+  output_automaton_size_max = std::stoul(argv[2]);
 
   std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
@@ -248,10 +256,15 @@ int main(int argc, char* argv[]) {
 
   // After the task was executed at a worker process, its result is returned to the master process.
   // When the master process receives the result, this callback function is called at the master process.
-  std::function<void(int64_t, const json&, const json&, caravan::Queue&)> on_result_receive = [&fin,&read_lines_and_push_task,&total_sizes](int64_t task_id, const json& input, const json& output, caravan::Queue& q) {
-    auto v = output.get<std::vector<size_t>>();
+  std::function<void(int64_t, const json&, const json&, caravan::Queue&)> on_result_receive = [&fin,&read_lines_and_push_task,&total_sizes,&fout](int64_t task_id, const json& input, const json& output, caravan::Queue& q) {
+    auto v = output["sizes"].get<std::vector<size_t>>();
     for (size_t i = 0; i < v.size(); i++) {
       total_sizes[i] += v[i];
+    }
+    if (!output["found"].empty()) {
+      for (auto& line : output["found"]) {
+        fout << line.get<std::string>() << std::endl;
+      }
     }
     if (fin) {
       uint64_t task_id = read_lines_and_push_task(q);
@@ -281,16 +294,19 @@ int main(int argc, char* argv[]) {
 
     automaton_sizes_t sizes;
     sizes.fill(0);
+    std::vector<std::string> found;
     #pragma omp parallel for shared(lines,sizes) schedule(dynamic,1)
     for (size_t i = 0; i < lines.size(); i++) {
-      automaton_sizes_t r = AutomatonSizes(lines[i]);
+      automaton_sizes_t r = AutomatonSizes(lines[i], found);
       for (size_t i = 0; i < r.size(); ++i) {
         #pragma omp atomic
         sizes[i] += r[i];
       }
     }
 
-    json output = sizes;
+    json output;
+    output["sizes"] = sizes;
+    output["found"] = found;
     return output;
   };
 
