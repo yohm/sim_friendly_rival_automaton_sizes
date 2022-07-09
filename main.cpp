@@ -210,10 +210,11 @@ int main(int argc, char* argv[]) {
 
   std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
+  size_t total_num_lines_read = 0;
   automaton_sizes_t total_sizes;
   total_sizes.fill(0);
 
-  auto read_lines_and_push_task = [&fin,&start](caravan::Queue& q) -> uint64_t {
+  auto read_lines_and_push_task = [&fin,&start,&total_num_lines_read](caravan::Queue& q) -> uint64_t {
     json lines;
     size_t num_strategies = 0ul;
     const size_t max_line_size = 8192;
@@ -222,6 +223,13 @@ int main(int argc, char* argv[]) {
     std::string line;
     while (std::getline(fin, line)) {
       if (line.empty()) break;
+      total_num_lines_read += 1;
+      if (total_num_lines_read % 1000000 == 0) {
+        std::chrono::system_clock::time_point end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end - start;
+        std::cerr << "total_num_lines_read:" << total_num_lines_read << ' ' << elapsed_seconds.count() << std::endl;
+      }
+
       lines.emplace_back(line);
       size_t n = 1ul;
       for (size_t i = 0; i < line.size(); i++) {
@@ -234,11 +242,6 @@ int main(int argc, char* argv[]) {
     }
     // std::cerr << num_strategies << ' ' << lines.size() << std::endl;
     uint64_t task_id = q.Push(lines);
-    if (task_id % 100000 == 0) {
-      std::chrono::system_clock::time_point end = std::chrono::system_clock::now();
-      std::chrono::duration<double> elapsed_seconds = end - start;
-      std::cerr << "task_id:" << task_id << ' ' << elapsed_seconds.count() << std::endl;
-    }
     return task_id;
   };
 
