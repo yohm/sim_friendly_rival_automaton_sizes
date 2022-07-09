@@ -145,6 +145,7 @@ void ExpandWildcard(const std::string& line, automaton_sizes_t& automaton_sizes,
   }
   int size = MinimizedDFASize(line.c_str());
   automaton_sizes[size]++;
+  #pragma omp critical
   if (size <= output_automaton_size_max) {
     found.emplace_back(line);
   }
