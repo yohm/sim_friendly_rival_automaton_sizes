@@ -33,9 +33,12 @@ int main(int argc, char* argv[]) {
     std::sort(pair.second.begin(), pair.second.end());
     for (auto& line : pair.second) {
       std::cout << s << " " << line << " ";
-      auto partition = DFA_translator::MinimizedPartition(line.c_str());
-      for (auto& p : partition) {
-        std::cout << p.first << ",";
+      auto m = DFA_translator::MinimizedPartition(line.c_str());
+      for (auto& p : m) {
+        for (auto& n : p.second) {
+          std::cout << n << ' ';
+        }
+        std::cout << "/ ";
       }
       std::cout << std::endl;
     }

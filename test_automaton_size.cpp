@@ -47,11 +47,12 @@ int main(int argc, char* argv[]) {
   else if (argc == 2) {
     const std::string line = argv[1];
     auto p = DFA_translator::MinimizedPartition(line.c_str());
-    IC(p);
     for (auto pair: p) {
-      std::cout << pair.first << ",";
+      for (auto n: pair.second) {
+        std::cout << n << ' ';
+      }
+      std::cout << std::endl;
     }
-    std::cout << std::endl;
   }
   else {
     std::cerr << "Usage: " << argv[0] << " [line]" << std::endl;
