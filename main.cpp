@@ -181,13 +181,13 @@ void AddExpandedLines(const std::string &line, std::vector<std::string>& lines, 
 int main(int argc, char* argv[]) {
   MPI_Init(&argc, &argv);
 
-  int my_rank, total_size;
-  MPI_Comm_size(MPI_COMM_WORLD, &total_size);
+  int my_rank, mpi_size;
+  MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
   if (my_rank == 0) {
     int num_threads = omp_get_max_threads();
-    std::cerr << "total_size = " << total_size << std::endl;
+    std::cerr << "mpi_size = " << mpi_size << std::endl;
     std::cerr << "num_threads = " << num_threads << std::endl;
   }
 
@@ -217,52 +217,47 @@ int main(int argc, char* argv[]) {
   automaton_sizes_t total_sizes;
   total_sizes.fill(0);
 
-  auto read_lines_and_push_task = [&fin,&start,&total_num_lines_read](caravan::Queue& q) -> uint64_t {
-    json lines;
-    size_t num_strategies = 0ul;
-    const size_t max_line_size = 8192;
-    const size_t max_num_strategies = 1ul << 22;
+  auto read_lines_and_push_tasks = [&fin,&start,&total_num_lines_read,mpi_size](caravan::Queue& q) {
+    while(fin && q.Size() < mpi_size) {
+      json lines;
+      size_t num_strategies = 0ul;
+      const size_t max_line_size = 8192;
+      const size_t max_num_strategies = 1ul << 22;
 
-    std::string line;
-    while (std::getline(fin, line)) {
-      if (line.empty()) break;
-      total_num_lines_read += 1;
-      if (total_num_lines_read % 1000000 == 0) {
-        std::chrono::system_clock::time_point end = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_seconds = end - start;
-        std::cerr << "total_num_lines_read:" << total_num_lines_read << ' ' << elapsed_seconds.count() << std::endl;
-      }
+      std::string line;
+      while (std::getline(fin, line)) {
+        if (line.empty()) break;
+        total_num_lines_read += 1;
+        if (total_num_lines_read % 1000000 == 0) {
+          std::chrono::system_clock::time_point end = std::chrono::system_clock::now();
+          std::chrono::duration<double> elapsed_seconds = end - start;
+          std::cerr << "total_num_lines_read:" << total_num_lines_read << ' ' << elapsed_seconds.count() << std::endl;
+        }
 
-      lines.emplace_back(line);
-      size_t n = 1ul;
-      for (size_t i = 0; i < line.size(); i++) {
-        if (line[i] == '*') { n = n << 1; }
+        lines.emplace_back(line);
+        size_t n = 1ul;
+        for (size_t i = 0; i < line.size(); i++) {
+          if (line[i] == '*') { n = n << 1; }
+        }
+        num_strategies += n;
+        if (lines.size() >= max_line_size || num_strategies >= max_num_strategies) {
+          break;
+        }
       }
-      num_strategies += n;
-      if (lines.size() >= max_line_size || num_strategies >= max_num_strategies) {
-        break;
-      }
+      // std::cerr << num_strategies << ' ' << lines.size() << std::endl;
+      q.Push(lines);
     }
-    // std::cerr << num_strategies << ' ' << lines.size() << std::endl;
-    uint64_t task_id = q.Push(lines);
-    return task_id;
   };
 
   // define a pre-process: create json object that contains parameters of tasks
   // This function is called only at the master process.
-  std::function<void(caravan::Queue&)> on_init = [&fin,&read_lines_and_push_task,total_size](caravan::Queue& q) {
-    while(fin) {
-      uint64_t task_id = read_lines_and_push_task(q);
-      // IC(task_id);
-      if (task_id >= total_size) {
-        break;
-      }
-    }
+  std::function<void(caravan::Queue&)> on_init = [&fin,&read_lines_and_push_tasks](caravan::Queue& q) {
+    read_lines_and_push_tasks(q);
   };
 
   // After the task was executed at a worker process, its result is returned to the master process.
   // When the master process receives the result, this callback function is called at the master process.
-  std::function<void(int64_t, const json&, const json&, caravan::Queue&)> on_result_receive = [&fin,&read_lines_and_push_task,&total_sizes,&fout](int64_t task_id, const json& input, const json& output, caravan::Queue& q) {
+  std::function<void(int64_t, const json&, const json&, caravan::Queue&)> on_result_receive = [&fin,&read_lines_and_push_tasks,&total_sizes,&fout](int64_t task_id, const json& input, const json& output, caravan::Queue& q) {
     auto v = output["sizes"].get<std::vector<size_t>>();
     for (size_t i = 0; i < v.size(); i++) {
       total_sizes[i] += v[i];
@@ -272,8 +267,8 @@ int main(int argc, char* argv[]) {
         fout << line.get<std::string>() << std::endl;
       }
     }
-    if (fin) {
-      uint64_t task_id = read_lines_and_push_task(q);
+    if (fin && q.Size() == 0) {
+      read_lines_and_push_tasks(q);
     }
   };
 
