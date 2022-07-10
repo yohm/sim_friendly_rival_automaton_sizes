@@ -36,9 +36,9 @@ int main(int argc, char* argv[]) {
       auto m = DFA_translator::MinimizedPartition(line.c_str());
       for (auto& p : m) {
         for (auto& n : p.second) {
-          std::cout << n << ' ';
+          std::cout << n << ',';
         }
-        std::cout << "/ ";
+        std::cout << " ";
       }
       std::cout << std::endl;
     }
