@@ -1,3 +1,4 @@
 [0-9]*
 split_[0-9]*
 fugaku_job.sh.*
+automatons_*
