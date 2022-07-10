@@ -38,10 +38,25 @@ void EqualityTest(const char str[64]) {
 
 int main(int argc, char* argv[]) {
 
-  const std::string line = "cddcccddcdcdddddcccddddcdddcddcdcccccdddddcddcddddccdddddcdccccd";
+  if (argc == 1) {
+    const std::string line = "cddcccddcdcdddddcccddddcdddcddcdcccccdddddcddcddddccdddddcdccccd";
 
-  PerformanceTest(line.c_str());
-  EqualityTest(line.c_str());
+    PerformanceTest(line.c_str());
+    EqualityTest(line.c_str());
+  }
+  else if (argc == 2) {
+    const std::string line = argv[1];
+    auto p = DFA_translator::MinimizedPartition(line.c_str());
+    IC(p);
+    for (auto pair: p) {
+      std::cout << pair.first << ",";
+    }
+    std::cout << std::endl;
+  }
+  else {
+    std::cerr << "Usage: " << argv[0] << " [line]" << std::endl;
+    return 1;
+  }
 
   return 0;
 }
