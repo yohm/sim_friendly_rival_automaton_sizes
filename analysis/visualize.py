@@ -58,10 +58,10 @@ make_dot(strategy, partition)
 # %%
 # open file and read the first line
 with open('../job/automatons_sorted', 'r') as f:
-  for line in f:
+  for line_idx,line in enumerate(f):
     size,strategy,partition = line_to_partition(line)
-    if size > 5:
+    if size > 6:
       break
     dot = make_dot(strategy, partition)
-    dot.show()
+    dot.render(f"automaton_{line_idx}")
 # %%
