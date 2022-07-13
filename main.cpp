@@ -13,8 +13,8 @@
 
 
 using json = nlohmann::json;
-using automaton_sizes_t = std::array<size_t, 65>;
-size_t output_automaton_size_max = 0;
+using automaton_sizes_t = std::pair<std::array<size_t, 65>, std::array<size_t, 65>>;
+size_t output_f_automaton_size_max = 0, output_s_automaton_size_max = 0;
 
 void ExpandWildcard(const std::string& line, automaton_sizes_t& automaton_sizes, std::vector<std::string>& found) {
   for (int i = 0; i < line.size(); i++) {
@@ -27,9 +27,11 @@ void ExpandWildcard(const std::string& line, automaton_sizes_t& automaton_sizes,
       return;
     }
   }
-  int size = DFA_translator::MinimizedDFASize(line.c_str());
-  automaton_sizes[size]++;
-  if (size <= output_automaton_size_max) {
+  int size_f = DFA_translator::MinimizedDFASize(line.c_str());
+  int size_s = DFA_translator::MinimizedDFASizeSimple(line.c_str());
+  automaton_sizes.first[size_f]++;
+  automaton_sizes.second[size_s]++;
+  if (size_f <= output_f_automaton_size_max || size_s <= output_s_automaton_size_max) {
     #pragma omp critical
     {
       found.emplace_back(line);
@@ -39,7 +41,8 @@ void ExpandWildcard(const std::string& line, automaton_sizes_t& automaton_sizes,
 
 automaton_sizes_t AutomatonSizes(const std::string& line, std::vector<std::string>& found) {
   automaton_sizes_t sizes;
-  sizes.fill(0);
+  sizes.first.fill(0);
+  sizes.second.fill(0);
 
   ExpandWildcard(line, sizes, found);
   return sizes;
@@ -75,9 +78,9 @@ int main(int argc, char* argv[]) {
     std::cerr << "num_threads = " << num_threads << std::endl;
   }
 
-  if (argc != 3) {
+  if (argc != 4) {
     if (my_rank == 0) {
-      std::cerr << "Usage: " << argv[0] << " <input_file> <output_automaton_size_max>" << std::endl;
+      std::cerr << "Usage: " << argv[0] << " <input_file> <output_f_automaton_size_max> <output_s_automaton_size_max>" << std::endl;
     }
     MPI_Abort(MPI_COMM_WORLD, 1);
     return 1;
@@ -93,13 +96,15 @@ int main(int argc, char* argv[]) {
 
     fout.open("automatons");
   }
-  output_automaton_size_max = std::stoul(argv[2]);
+  output_f_automaton_size_max = std::stoul(argv[2]);
+  output_s_automaton_size_max = std::stoul(argv[3]);
 
   std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
   size_t total_num_lines_read = 0;
   automaton_sizes_t total_sizes;
-  total_sizes.fill(0);
+  total_sizes.first.fill(0);
+  total_sizes.second.fill(0);
 
   auto read_lines_and_push_tasks = [&fin,&start,&total_num_lines_read,mpi_size](caravan::Queue& q) {
     while(fin && q.Size() < mpi_size) {
@@ -142,9 +147,10 @@ int main(int argc, char* argv[]) {
   // After the task was executed at a worker process, its result is returned to the master process.
   // When the master process receives the result, this callback function is called at the master process.
   std::function<void(int64_t, const json&, const json&, caravan::Queue&)> on_result_receive = [&fin,&read_lines_and_push_tasks,&total_sizes,&fout](int64_t task_id, const json& input, const json& output, caravan::Queue& q) {
-    auto v = output["sizes"].get<std::vector<size_t>>();
-    for (size_t i = 0; i < v.size(); i++) {
-      total_sizes[i] += v[i];
+    auto v = output["sizes"].get<automaton_sizes_t>();
+    for (size_t i = 0; i < v.first.size(); i++) {
+      total_sizes.first[i] += v.first[i];
+      total_sizes.second[i] += v.second[i];
     }
     if (!output["found"].empty()) {
       for (auto& line : output["found"]) {
@@ -178,14 +184,17 @@ int main(int argc, char* argv[]) {
     }
 
     automaton_sizes_t sizes;
-    sizes.fill(0);
+    sizes.first.fill(0);
+    sizes.second.fill(0);
     std::vector<std::string> found;
     #pragma omp parallel for shared(lines,sizes) schedule(dynamic,1)
     for (size_t i = 0; i < lines.size(); i++) {
       automaton_sizes_t r = AutomatonSizes(lines[i], found);
-      for (size_t i = 0; i < r.size(); ++i) {
+      for (size_t i = 0; i < r.first.size(); ++i) {
         #pragma omp atomic
-        sizes[i] += r[i];
+        sizes.first[i] += r.first[i];
+        #pragma omp atomic
+        sizes.second[i] += r.second[i];
       }
     }
 
@@ -202,14 +211,16 @@ int main(int argc, char* argv[]) {
   std::chrono::duration<double> elapsed_seconds = end - start;
 
   if (my_rank == 0) {
-    size_t sum = 0;
-    double total = 0.0;
+    size_t sum_f = 0, sum_s = 0;
+    double total_f = 0.0, total_s = 0.0;
     for (int i = 0; i < 65; i++) {
-      std::cout << i << ' ' << total_sizes[i] << std::endl;
-      sum += total_sizes[i];
-      total += i * total_sizes[i];
+      std::cout << i << ' ' << total_sizes.first[i] << " " << total_sizes.second[i] << std::endl;
+      sum_f += total_sizes.first[i];
+      sum_s += total_sizes.second[i];
+      total_f += i * total_sizes.first[i];
+      total_s += i * total_sizes.second[i];
     }
-    IC(sum, total/sum, elapsed_seconds.count(), elapsed_seconds.count()/sum);
+    IC(sum_f, sum_s, total_f/sum_f, total_s/sum_s, elapsed_seconds.count(), elapsed_seconds.count()/sum_f);
   }
 
   MPI_Finalize();
