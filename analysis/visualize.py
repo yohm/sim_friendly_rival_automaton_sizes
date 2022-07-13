@@ -2,23 +2,29 @@
 import graphviz
 
 # %%
-line = "5 cdcdcdcdcccdcccddccdcdcdcccdcccdcdcdcdcdcccdcccddccdcdcdcccdcccd 0,2,4,6,10,14,18,20,22,26,30,32,34,36,38,42,46,50,52,54,58,62, 1,3,5,7,11,15,19,21,23,27,31,33,35,37,39,43,47,51,53,55,59,63, 8,12,24,28,40,44,56,60, 9,13,17,25,29,41,45,49,57,61, 16,48, "
+line = "5 cdcdcdcdcccdcccddccdcdcdcccdcccdcdcdcdcdcccdcccddccdcdcdcccdcccd 0,2,4,6,10,14,18,20,22,26,30,32,34,36,38,42,46,50,52,54,58,62;1,3,5,7,11,15,19,21,23,27,31,33,35,37,39,43,47,51,53,55,59,63;8,12,24,28,40,44,56,60;9,13,17,25,29,41,45,49,57,61;16,48 0,2,4,6,9,10,13,14,17,18,20,22,25,26,29,30,32,34,36,38,41,42,45,46,49,50,52,54,57,58,61,62;1,3,5,7,11,15,19,21,23,27,31,33,35,37,39,43,47,51,53,55,59,63;8,12,24,28,40,44,56,60;16,48"
 # %%
 def line_to_partition(line):
   a = line.split()
-  print(line)
   size = int(a[0])
   strategy = a[1]
-  partition = list(range(64))
-  for x in a[2:]:
-    nodes = [int(n) for n in x.rstrip(',').split(',')]
-    idx = nodes[0]
-    for n in nodes:
-      partition[n] = idx
-  return size,strategy,partition
+  def string_to_partition(s):
+    partition = list(range(64))
+    for n_list in s.split(';'):
+      nodes = [int(n) for n in n_list.split(',')]
+      idx = nodes[0]
+      for n in nodes:
+        partition[n] = idx
+    return partition
 
-size,strategy,partition = line_to_partition(line)
-size,strategy,partition
+  partition_full = string_to_partition(a[2])
+  partition_simple = string_to_partition(a[3])
+
+  return size,strategy,partition_full,partition_simple
+
+size,strategy,partition_f,partition_s = line_to_partition(line)
+size,strategy,partition_f,partition_s
+" ".join(map(str, partition_s)), " ".join(map(str, partition_f))
 # %%
 dests_graph = []
 for i in range(64):
@@ -35,7 +41,7 @@ dests_graph
 
 
 # %%
-def make_dot(strategy, partition):
+def make_dot(strategy, partition, simplified=False):
   color_list = ["skyblue", "salmon"]
   dot = graphviz.Digraph(strategy)
   # set nodes
@@ -45,23 +51,31 @@ def make_dot(strategy, partition):
       dot.node(str(n), str(n), color=color, style='filled')
   # set links
   for idx,n in enumerate(partition):
-    if idx == n:
+    if idx == n:      # if n is a root node
       for dest_idx,d in enumerate(dests_graph[n]):
         label = ['cc', 'cd', 'dc', 'dd'][dest_idx]
         color = color_list[0] if label[1] == 'c' else color_list[1]
         style = 'solid' if strategy[n] == label[0] else 'dashed'
+        if simplified and style == 'dashed':
+          continue   # do not add a dashed edge for simplified automaton
         dot.edge(str(n), str(partition[d]), label=label, color=color, style=style)
   return dot
 
-make_dot(strategy, partition)
+make_dot(strategy, partition_f, simplified=False)
+
+# %%
+make_dot(strategy, partition_s, simplified=True)
 
 # %%
 # open file and read the first line
 with open('../job/automatons_sorted', 'r') as f:
   for line_idx,line in enumerate(f):
-    size,strategy,partition = line_to_partition(line)
+    size,strategy,partition_f,partition_s = line_to_partition(line)
+    print(strategy)
     if size > 6:
       break
-    dot = make_dot(strategy, partition)
-    dot.render(f"automaton_{line_idx}")
+    dot_f = make_dot(strategy, partition_f,simplified=False)
+    dot_f.render(f"automaton_{line_idx}_full")
+    dot_s = make_dot(strategy, partition_s,simplified=True)
+    dot_s.render(f"automaton_{line_idx}_simple")
 # %%
