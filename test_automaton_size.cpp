@@ -50,10 +50,8 @@ void SerializeTest() {
   const char* str = "cdcdcdcdcccdcccddccdcdcdcccdcccdcdcdcdcdcccdcccddccdcdcdcccdcccd";
   auto partition = DFA_translator::MinimizedPartitionSimple(str);
   IC(partition);
-  auto serialized = DFA_translator::Serialize(str, partition);
+  auto serialized = DFA_translator::SerializeToString(str);
   IC(serialized);
-  auto s = DFA_translator::ToString(serialized);
-  IC(s);
 }
 
 
@@ -81,8 +79,7 @@ int main(int argc, char* argv[]) {
     }
     if (!is_full) {
       std::cout << "Serialized:" << std::endl;
-      auto nodes_links = DFA_translator::Serialize(line.c_str(), p);
-      std::cout << DFA_translator::ToString(nodes_links) << std::endl;
+      std::cout << DFA_translator::SerializeToString(line.c_str()) << std::endl;
     }
   }
   else {

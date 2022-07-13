@@ -244,7 +244,9 @@ namespace DFA_translator {
   }
 
   using serialized_autom_t = std::pair<std::vector<char>, std::vector<std::pair<size_t,size_t>> >;
-  serialized_autom_t Serialize(const char str[64], const std::map<size_t,std::vector<size_t>> & autom) {
+  serialized_autom_t Serialize(const char str[64]) {
+    const std::map<size_t,std::vector<size_t>> autom = MinimizedPartitionSimple(str);
+
     std::array<size_t, 64> root;   // root[i]: index of the root node
     std::vector<size_t> root_nodes;  // set of root nodes
     for (const auto &kv: autom) {
@@ -312,7 +314,8 @@ namespace DFA_translator {
     return std::make_pair(node_actions, links);
   }
 
-  std::string ToString(const serialized_autom_t& serialized) {
+  std::string SerializeToString(const char str[64]) {
+    serialized_autom_t serialized = Serialize(str);
     std::stringstream ss;
     for (size_t i = 0; i < serialized.first.size(); i++) {
       ss << i << ',' << serialized.first[i] << ',' << serialized.second[i].first << ',' << serialized.second[i].second;
@@ -321,6 +324,5 @@ namespace DFA_translator {
       }
     }
     return ss.str();
-
   }
 }
