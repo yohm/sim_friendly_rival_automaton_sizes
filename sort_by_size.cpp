@@ -1,9 +1,23 @@
 #include <iostream>
 #include <fstream>
 #include <array>
+#include <vector>
+#include <sstream>
 #include "icecream.hpp"
 #include "DFA_translator.hpp"
 
+
+template <class T>
+std::string Join(const std::vector<T>& vec, const std::string& delim) {
+  std::stringstream ss;
+  for (size_t i = 0; i < vec.size(); i++) {
+    ss << vec[i];
+    if (i != vec.size()-1) {
+      ss << delim;
+    }
+  }
+  return ss.str();
+}
 
 int main(int argc, char* argv[]) {
 
@@ -34,13 +48,20 @@ int main(int argc, char* argv[]) {
     for (auto& line : pair.second) {
       std::cout << s << " " << line << " ";
       auto m = DFA_translator::MinimizedPartition(line.c_str());
+      std::vector<std::string> v;
       for (auto& p : m) {
-        for (auto& n : p.second) {
-          std::cout << n << ',';
-        }
-        std::cout << " ";
+        std::string s = Join(p.second, ",");
+        v.emplace_back(s);
       }
-      std::cout << std::endl;
+      std::cout << Join(v, ";") << " ";
+
+      auto m2 = DFA_translator::MinimizedPartitionSimple(line.c_str());
+      std::vector<std::string> v2;
+      for (auto& p : m2) {
+        std::string s = Join(p.second, ",");
+        v2.emplace_back(s);
+      }
+      std::cout << Join(v2, ";") << std::endl;
     }
   }
 
