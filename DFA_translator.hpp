@@ -217,7 +217,8 @@ namespace DFA_translator {
     for (size_t i = 0; i < 64; i++) {
       F[i] = (str[i] == 'c') ? 1 : 0;
     }
-    DFA<64,2> dfa(F, ConstructDeltaForSimplifiedDFA(str));
+    auto delta = ConstructDeltaForSimplifiedDFA(str);
+    DFA<64,2> dfa(F, delta);
     return dfa.MinimizedSize();
   }
 
