@@ -46,6 +46,16 @@ void EqualityTest(const char str[64]) {
   }
 }
 
+void SerializeTest() {
+  const char* str = "cdcdcdcdcccdcccddccdcdcdcccdcccdcdcdcdcdcccdcccddccdcdcdcccdcccd";
+  auto partition = DFA_translator::MinimizedPartitionSimple(str);
+  IC(partition);
+  auto serialized = DFA_translator::Serialize(str, partition);
+  IC(serialized);
+  auto s = DFA_translator::ToString(serialized);
+  IC(s);
+}
+
 
 int main(int argc, char* argv[]) {
 
@@ -54,6 +64,7 @@ int main(int argc, char* argv[]) {
 
     PerformanceTest(line.c_str());
     EqualityTest(line.c_str());
+    SerializeTest();
   }
   else if (argc == 2 || argc == 3) {
     bool is_full = true;
@@ -67,6 +78,11 @@ int main(int argc, char* argv[]) {
         std::cout << n << ' ';
       }
       std::cout << std::endl;
+    }
+    if (!is_full) {
+      std::cout << "Serialized:" << std::endl;
+      auto nodes_links = DFA_translator::Serialize(line.c_str(), p);
+      std::cout << DFA_translator::ToString(nodes_links) << std::endl;
     }
   }
   else {

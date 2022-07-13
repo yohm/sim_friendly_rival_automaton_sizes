@@ -1,6 +1,9 @@
 #include <iostream>
 #include <array>
+#include <vector>
 #include <map>
+#include <queue>
+#include <set>
 
 template <int N, int Z>  // N: number of states, Z: number of alphabets
 class DFA {
@@ -238,5 +241,86 @@ namespace DFA_translator {
     }
     DFA<64,2> dfa(F, ConstructDeltaForSimplifiedDFA(str));
     return dfa.MinimizedPartitionMap();
+  }
+
+  using serialized_autom_t = std::pair<std::vector<char>, std::vector<std::pair<size_t,size_t>> >;
+  serialized_autom_t Serialize(const char str[64], const std::map<size_t,std::vector<size_t>> & autom) {
+    std::array<size_t, 64> root;   // root[i]: index of the root node
+    std::vector<size_t> root_nodes;  // set of root nodes
+    for (const auto &kv: autom) {
+      root_nodes.push_back(kv.first);
+      for (size_t n: kv.second) {
+        root[n] = kv.first;
+      }
+    }
+
+    auto next_states = [&root, &str](size_t n) -> std::pair<size_t, size_t> {
+      size_t nb = (n << 1) & 0b111111;
+      if (str[n] == 'c') {
+        return {root[nb], root[nb | 0b000001]};
+      } else {
+        return {root[nb | 0b001000], root[nb | 0b001001]};
+      }
+    };
+
+    // BFS to fix the index of the root state
+    std::vector<size_t> visited;
+    std::queue<size_t> q;
+
+    while (visited.size() < autom.size()) {
+      for (size_t r: root_nodes) {
+        if (std::find(visited.begin(), visited.end(), r) == visited.end()) {
+          q.push(r);
+          visited.push_back(r);
+        }
+      }
+
+      while (!q.empty()) {
+        size_t n = q.front();
+        q.pop();
+        auto p = next_states(n);
+        size_t n0 = p.first;
+        size_t n1 = p.second;
+        //IC(n, n0, n1);
+        if (std::find(visited.begin(), visited.end(), n0) == visited.end()) {
+          visited.push_back(n0);
+          q.push(n0);
+        }
+        if (std::find(visited.begin(), visited.end(), n1) == visited.end()) {
+          visited.push_back(n1);
+          q.push(n1);
+        }
+      }
+    }
+
+    std::map<size_t, size_t> index_map;
+    for (size_t i = 0; i < visited.size(); i++) {
+      index_map[visited[i]] = i;
+    }
+    // IC(visited, index_map);
+
+    std::vector<char> node_actions;
+    std::vector< std::pair<size_t,size_t> > links;
+    for (size_t r: visited) {
+      node_actions.push_back(str[r]);
+      auto p = next_states(r);
+      size_t n0 = p.first;
+      size_t n1 = p.second;
+      links.push_back({index_map[n0], index_map[n1]});
+    }
+    // IC(node_actions,links);
+    return std::make_pair(node_actions, links);
+  }
+
+  std::string ToString(const serialized_autom_t& serialized) {
+    std::stringstream ss;
+    for (size_t i = 0; i < serialized.first.size(); i++) {
+      ss << i << ',' << serialized.first[i] << ',' << serialized.second[i].first << ',' << serialized.second[i].second;
+      if (i != serialized.first.size() - 1) {
+        ss << ";";
+      }
+    }
+    return ss.str();
+
   }
 }
