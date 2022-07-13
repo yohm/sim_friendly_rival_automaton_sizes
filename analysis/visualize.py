@@ -37,7 +37,7 @@ dests_graph
 # %%
 def make_dot(strategy, partition):
   color_list = ["skyblue", "salmon"]
-  dot = graphviz.Digraph()
+  dot = graphviz.Digraph(strategy)
   # set nodes
   for idx,n in enumerate(partition):
     if idx == n:  # root node

@@ -22,16 +22,27 @@ void PerformanceTest(const char str[64]) {
 }
 
 void EqualityTest(const char str[64]) {
-  auto partition = DFA_translator::MinimizedPartition(str);
-  IC(partition);
+  auto partition1 = DFA_translator::MinimizedPartition(str);
+  IC(partition1);
 
   StrategyM3 strategy(str);
   auto partition2 = strategy.MinimizeDFA(true).to_map();
   IC(partition2);
 
-  if (partition != partition2) {
-    std::cerr << "partition != partition2" << std::endl;
-    throw std::runtime_error("partition != partition2");
+  if (partition1 != partition2) {
+    std::cerr << "partition1 != partition2" << std::endl;
+    throw std::runtime_error("partition1 != partition2");
+  }
+
+  auto partition3 = DFA_translator::MinimizedPartitionSimple(str);
+  IC(partition3);
+
+  auto partition4 = strategy.MinimizeDFA(false).to_map();
+  IC(partition4);
+
+  if (partition3 != partition4) {
+    std::cerr << "partition3 != partition4" << std::endl;
+    throw std::runtime_error("partition3 != partition4");
   }
 }
 
@@ -44,9 +55,13 @@ int main(int argc, char* argv[]) {
     PerformanceTest(line.c_str());
     EqualityTest(line.c_str());
   }
-  else if (argc == 2) {
+  else if (argc == 2 || argc == 3) {
+    bool is_full = true;
+    if (argc == 3) {
+      is_full = std::stoi(argv[2]) == 0;
+    }
     const std::string line = argv[1];
-    auto p = DFA_translator::MinimizedPartition(line.c_str());
+    auto p = is_full ? DFA_translator::MinimizedPartition(line.c_str()) : DFA_translator::MinimizedPartitionSimple(line.c_str());
     for (auto pair: p) {
       for (auto n: pair.second) {
         std::cout << n << ' ';
@@ -55,7 +70,7 @@ int main(int argc, char* argv[]) {
     }
   }
   else {
-    std::cerr << "Usage: " << argv[0] << " [line]" << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [line] [full:0, simplified:1]" << std::endl;
     return 1;
   }
 

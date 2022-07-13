@@ -178,6 +178,31 @@ namespace DFA_translator {
                                                                          {54, 55, 62, 63}
                                                                        }};
 
+  std::array<std::array<size_t,2>, 64> ConstructDeltaForSimplifiedDFA(const char str[64]) {
+    std::array<std::array<size_t,2>, 64> delta;
+    using bt = std::bitset<6>;
+    for (int i = 0; i < 64; i++) {
+      const bt b = bt(i) << 1;
+      const bt n0 = b & bt(0b110110) | bt(0b000000);
+      const bt n1 = b & bt(0b110110) | bt(0b000001);
+      const bt n2 = b & bt(0b110110) | bt(0b001000);
+      const bt n3 = b & bt(0b110110) | bt(0b001001);
+      if (str[i] == 'c') {
+        delta[i] = {
+          n0.to_ulong(),
+          n1.to_ulong()
+        };
+      }
+      else {
+        delta[i] = {
+          n2.to_ulong(),
+          n3.to_ulong()
+        };
+      }
+    }
+    return delta;
+  }
+
   int MinimizedDFASize(const char str[64]) {
     std::array<size_t,64> F;
     for (size_t i = 0; i < 64; i++) {
@@ -187,12 +212,30 @@ namespace DFA_translator {
     return dfa.MinimizedSize();
   }
 
+  int MinimizedDFASizeSimple(const char str[64]) {
+    std::array<size_t,64> F;
+    for (size_t i = 0; i < 64; i++) {
+      F[i] = (str[i] == 'c') ? 1 : 0;
+    }
+    DFA<64,2> dfa(F, ConstructDeltaForSimplifiedDFA(str));
+    return dfa.MinimizedSize();
+  }
+
   std::map<size_t,std::vector<size_t>> MinimizedPartition(const char str[64]) {
     std::array<size_t,64> F;
     for (size_t i = 0; i < 64; i++) {
       F[i] = (str[i] == 'c') ? 1 : 0;
     }
     DFA<64,4> dfa(F, delta_for_full_DFA);
+    return dfa.MinimizedPartitionMap();
+  }
+
+  std::map<size_t,std::vector<size_t>> MinimizedPartitionSimple(const char str[64]) {
+    std::array<size_t,64> F;
+    for (size_t i = 0; i < 64; i++) {
+      F[i] = (str[i] == 'c') ? 1 : 0;
+    }
+    DFA<64,2> dfa(F, ConstructDeltaForSimplifiedDFA(str));
     return dfa.MinimizedPartitionMap();
   }
 }
