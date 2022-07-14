@@ -185,7 +185,7 @@ namespace DFA_translator {
     std::array<std::array<size_t,2>, 64> delta;
     using bt = std::bitset<6>;
     for (int i = 0; i < 64; i++) {
-      const bt b = bt(i) << 1;
+      const bt b = bt(i & 0b011011) << 1;
       const bt n0 = b & bt(0b110110) | bt(0b000000);
       const bt n1 = b & bt(0b110110) | bt(0b000001);
       const bt n2 = b & bt(0b110110) | bt(0b001000);
@@ -257,8 +257,9 @@ namespace DFA_translator {
     }
 
     auto next_states = [&root, &str](size_t n) -> std::pair<size_t, size_t> {
-      size_t nb = (n << 1) & 0b111111;
+      size_t nb = (n & 0b011011) << 1;
       if (str[n] == 'c') {
+        IC(n,nb);
         return {root[nb], root[nb | 0b000001]};
       } else {
         return {root[nb | 0b001000], root[nb | 0b001001]};
