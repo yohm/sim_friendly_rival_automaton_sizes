@@ -2,3 +2,4 @@
 split_[0-9]*
 fugaku_job.sh.*
 automatons_*
+serialized
