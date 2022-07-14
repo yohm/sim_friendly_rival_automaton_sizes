@@ -259,7 +259,6 @@ namespace DFA_translator {
     auto next_states = [&root, &str](size_t n) -> std::pair<size_t, size_t> {
       size_t nb = (n & 0b011011) << 1;
       if (str[n] == 'c') {
-        IC(n,nb);
         return {root[nb], root[nb | 0b000001]};
       } else {
         return {root[nb | 0b001000], root[nb | 0b001001]};
