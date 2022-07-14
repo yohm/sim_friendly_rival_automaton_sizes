@@ -243,7 +243,7 @@ namespace DFA_translator {
     return dfa.MinimizedPartitionMap();
   }
 
-  using serialized_autom_t = std::pair<std::vector<char>, std::vector<std::pair<size_t,size_t>> >;
+  using serialized_autom_t = std::pair<std::vector<char>, std::vector<std::vector<size_t>> >;
   serialized_autom_t Serialize(const char str[64]) {
     const std::map<size_t,std::vector<size_t>> autom = MinimizedPartitionSimple(str);
 
@@ -302,13 +302,20 @@ namespace DFA_translator {
     // IC(visited, index_map);
 
     std::vector<char> node_actions;
-    std::vector< std::pair<size_t,size_t> > links;
+    std::vector< std::vector<size_t> > links;
     for (size_t r: visited) {
       node_actions.push_back(str[r]);
       auto p = next_states(r);
       size_t n0 = p.first;
       size_t n1 = p.second;
-      links.push_back({index_map[n0], index_map[n1]});
+      std::vector<size_t> l = {index_map[n0], index_map[n1]};
+      if (r == 0) {  // if r==0, add an additional link 0->8
+        l.push_back(index_map[root[8]]);
+      }
+      else if (r == index_map[root[63]]) { // if r==63, add an additional link 63->55
+        l.push_back(index_map[root[55]]);
+      }
+      links.push_back(l);
     }
     // IC(node_actions,links);
     return std::make_pair(node_actions, links);
@@ -318,7 +325,10 @@ namespace DFA_translator {
     serialized_autom_t serialized = Serialize(str);
     std::stringstream ss;
     for (size_t i = 0; i < serialized.first.size(); i++) {
-      ss << i << ',' << serialized.first[i] << ',' << serialized.second[i].first << ',' << serialized.second[i].second;
+      ss << i << ',' << serialized.first[i];
+      for (size_t j = 0; j < serialized.second[i].size(); j++) {
+        ss << ',' << serialized.second[i][j];
+      }
       if (i != serialized.first.size() - 1) {
         ss << ";";
       }
