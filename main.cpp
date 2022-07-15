@@ -223,6 +223,7 @@ int main(int argc, char* argv[]) {
     IC(sum_f, sum_s, total_f/sum_f, total_s/sum_s, elapsed_seconds.count(), elapsed_seconds.count()/sum_f);
   }
 
+  std::cerr << "finalizing: " << elapsed_seconds.count() << std::endl;
   MPI_Finalize();
   return 0;
 }
