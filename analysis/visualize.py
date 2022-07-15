@@ -72,7 +72,7 @@ with open('../job/automatons_sorted', 'r') as f:
   for line_idx,line in enumerate(f):
     size,strategy,partition_f,partition_s = line_to_partition(line)
     print(strategy)
-    if size > 6:
+    if size > 5:
       break
     dot_f = make_dot(strategy, partition_f,simplified=False)
     dot_f.render(f"automaton_{line_idx}_full")
