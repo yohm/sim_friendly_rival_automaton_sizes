@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include <sstream>
+#include <tuple>
 #include "icecream.hpp"
 #include "DFA_translator.hpp"
 
@@ -41,7 +42,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  std::map<std::string,size_t> serialized_automatons;
+  std::map<std::string, std::pair<std::string,size_t>> serialized_automatons; // {serialized, [strategy, frequency]}
 
   for (auto& pair : automatons) {
     size_t s = pair.first;
@@ -67,24 +68,25 @@ int main(int argc, char* argv[]) {
       if (m2.size() < 6) {
         std::string serialized = DFA_translator::SerializeToString(line.c_str());
         if (serialized_automatons.find(serialized) == serialized_automatons.end()) {
-          serialized_automatons[serialized] = 0;
+          serialized_automatons[serialized] = std::make_pair(line, 0);
         }
-        serialized_automatons[serialized]++;
+        serialized_automatons[serialized].second++;
       }
     }
   }
 
   // sort by number of states
-  std::vector<std::pair<std::string,size_t>> sorted_automatons;
+  using serialized_strategy_size_t = std::tuple<std::string, std::string, size_t>;
+  std::vector<serialized_strategy_size_t> sorted_automatons;
   for (auto& pair : serialized_automatons) {
-    sorted_automatons.emplace_back(pair.first, pair.second);
+    sorted_automatons.emplace_back(pair.first, pair.second.first, pair.second.second);
   }
   std::sort(sorted_automatons.begin(), sorted_automatons.end(),
-            [](const std::pair<std::string,size_t>& a, const std::pair<std::string,size_t>& b) {
-              return a.second > b.second;
+            [](const serialized_strategy_size_t& a, const serialized_strategy_size_t & b) {
+              return std::get<2>(a) > std::get<2>(b);
             });
-  for (auto& pair : sorted_automatons) {
-    std::cerr << pair.second << " " << pair.first << std::endl;
+  for (auto& tuple : sorted_automatons) {
+    std::cerr << std::get<0>(tuple) << " " << std::get<1>(tuple) << " " << std::get<2>(tuple) << std::endl;
   }
   // IC(serialized_automatons, serialized_automatons.size());
 

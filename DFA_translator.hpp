@@ -312,7 +312,7 @@ namespace DFA_translator {
       if (r == 0) {  // if r==0, add an additional link 0->8
         l.push_back(index_map[root[8]]);
       }
-      else if (r == index_map[root[63]]) { // if r==63, add an additional link 63->55
+      else if (index_map[r] == index_map[root[63]]) { // if r==63, add an additional link 63->55
         l.push_back(index_map[root[55]]);
       }
       links.push_back(l);
