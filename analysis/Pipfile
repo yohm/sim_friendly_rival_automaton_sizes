@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 graphviz = "*"
+numpy = "*"
+matplotlib = "*"
 
 [dev-packages]
 ipykernel = "*"
