@@ -4,6 +4,9 @@
 #include <map>
 #include <queue>
 #include <set>
+#include <numeric>
+#include <algorithm>
+
 
 template <int N, int Z>  // N: number of states, Z: number of alphabets
 class DFA {
@@ -243,96 +246,114 @@ namespace DFA_translator {
     return dfa.MinimizedPartitionMap();
   }
 
-  using serialized_autom_t = std::pair<std::vector<char>, std::vector<std::vector<size_t>> >;
-  serialized_autom_t Serialize(const char str[64]) {
-    const std::map<size_t,std::vector<size_t>> autom = MinimizedPartitionSimple(str);
+  class SimpAutomGraph {
+    public:
+    SimpAutomGraph() {};
+    SimpAutomGraph(const char str[64]) {
+      const std::map<size_t,std::vector<size_t>> autom = MinimizedPartitionSimple(str);
 
-    std::array<size_t, 64> root;   // root[i]: index of the root node
-    std::vector<size_t> root_nodes;  // set of root nodes
-    for (const auto &kv: autom) {
-      root_nodes.push_back(kv.first);
-      for (size_t n: kv.second) {
-        root[n] = kv.first;
+      auto find_root = [&autom](size_t i) -> size_t {
+        for (auto& [k,v] : autom) {
+          if (std::find(v.begin(), v.end(), i) != v.end()) {
+            return k;
+          }
+        }
+        return 100ul; // must not happen
+      };
+      auto next_states = [&find_root, &str](size_t n) -> std::vector<size_t> {
+        size_t nb = (n & 0b011011) << 1;
+        if (str[n] == 'c') {
+          return {find_root(nb), find_root(nb | 0b000001)};
+        } else {
+          return {find_root(nb | 0b001000), find_root(nb | 0b001001)};
+        }
+      };
+
+      auto add_node = [this,&find_root,&next_states,&str](size_t n) ->size_t {
+        size_t node_idx = find_root(n);
+        nodes.push_back( std::make_pair(node_idx, str[node_idx]));
+        edges[node_idx] = next_states(node_idx);
+        return node_idx;
+      };
+
+      // add node 0 & 63
+      size_t root_0 = add_node(0);
+      edges[root_0].push_back(find_root(8));  // additionally, append 0->8
+
+      size_t root_63 = add_node(63);
+      edges[root_63].push_back(find_root(55));  // additionally, append 63->55
+
+      for (auto& [k,v] : autom) {
+        if (k == root_0 || k == root_63) {
+          continue;
+        }
+        add_node(k);
       }
     }
+    std::vector<std::pair<size_t,char>> nodes; // nodes[i] = (node_idx, node_label)
+    std::map<size_t,std::vector<size_t>> edges;
 
-    auto next_states = [&root, &str](size_t n) -> std::pair<size_t, size_t> {
-      size_t nb = (n & 0b011011) << 1;
-      if (str[n] == 'c') {
-        return {root[nb], root[nb | 0b000001]};
-      } else {
-        return {root[nb | 0b001000], root[nb | 0b001001]};
+    std::string ToString() const {
+      std::stringstream ss;
+      for (size_t i = 0; i < nodes.size(); i++) {
+        ss << nodes[i].first << "," << nodes[i].second;
+        for (size_t j : edges.at(nodes[i].first)) {
+          ss << "," << j;
+        }
+        ss <<";";
       }
-    };
+      return ss.str();
+    }
 
-    // BFS to fix the index of the root state
-    std::vector<size_t> visited;
-    std::queue<size_t> q;
+    std::string ToRegularizedString() const {
+      // make vector from 0 to nodes.size()
+      std::vector<size_t> v(nodes.size());
+      std::iota(v.begin(), v.end(), 0);
 
-    while (visited.size() < autom.size()) {
-      for (size_t r: root_nodes) {
-        if (std::find(visited.begin(), visited.end(), r) == visited.end()) {
-          q.push(r);
-          visited.push_back(r);
+      std::string s = "999";
+      do {
+        SimpAutomGraph g = *this;
+        g.NodeRemap(v);
+        std::string s2 = g.ToString();
+        if (s2 < s) {
+          s = s2;
+        }
+      } while (std::next_permutation(v.begin()+2, v.end()));
+      return s;
+    }
+
+    void NodeRemap(const std::vector<size_t>& remap) {
+      if (remap.size() != nodes.size()) {
+        throw std::runtime_error("NodeRemap: remap size does not match");
+      }
+      std::map<size_t,size_t> m;
+      decltype(nodes) new_nodes;
+      for (size_t i = 0; i < nodes.size(); i++) {
+        m[nodes[i].first] = remap[i];
+        new_nodes.push_back(std::make_pair(remap[i], nodes[i].second));
+      }
+
+      nodes = new_nodes;
+      decltype(edges) new_edges;
+      for (auto& [k,v] : edges) {
+        new_edges[m[k]] = std::vector<size_t>();
+        for (size_t& i : v) {
+          new_edges[m[k]].push_back(m[i]);
         }
       }
+      edges = new_edges;
 
-      while (!q.empty()) {
-        size_t n = q.front();
-        q.pop();
-        auto p = next_states(n);
-        size_t n0 = p.first;
-        size_t n1 = p.second;
-        //IC(n, n0, n1);
-        if (std::find(visited.begin(), visited.end(), n0) == visited.end()) {
-          visited.push_back(n0);
-          q.push(n0);
+      // sort nodes by index
+      std::sort(nodes.begin(), nodes.end(),
+        [](const std::pair<size_t,char>& a, const std::pair<size_t,char>& b) {
+          return a.first < b.first;
         }
-        if (std::find(visited.begin(), visited.end(), n1) == visited.end()) {
-          visited.push_back(n1);
-          q.push(n1);
-        }
-      }
+      );
     }
+  };
 
-    std::map<size_t, size_t> index_map;
-    for (size_t i = 0; i < visited.size(); i++) {
-      index_map[visited[i]] = i;
-    }
-    // IC(visited, index_map);
-
-    std::vector<char> node_actions;
-    std::vector< std::vector<size_t> > links;
-    for (size_t r: visited) {
-      node_actions.push_back(str[r]);
-      auto p = next_states(r);
-      size_t n0 = p.first;
-      size_t n1 = p.second;
-      std::vector<size_t> l = {index_map[n0], index_map[n1]};
-      if (r == 0) {  // if r==0, add an additional link 0->8
-        l.push_back(index_map[root[8]]);
-      }
-      else if (index_map[r] == index_map[root[63]]) { // if r==63, add an additional link 63->55
-        l.push_back(index_map[root[55]]);
-      }
-      links.push_back(l);
-    }
-    // IC(node_actions,links);
-    return std::make_pair(node_actions, links);
-  }
-
-  std::string SerializeToString(const char str[64]) {
-    serialized_autom_t serialized = Serialize(str);
-    std::stringstream ss;
-    for (size_t i = 0; i < serialized.first.size(); i++) {
-      ss << i << ',' << serialized.first[i];
-      for (size_t j = 0; j < serialized.second[i].size(); j++) {
-        ss << ',' << serialized.second[i][j];
-      }
-      if (i != serialized.first.size() - 1) {
-        ss << ";";
-      }
-    }
-    return ss.str();
+  std::string SerializeSimpleAutom(const char str[64]) {
+    SimpAutomGraph g(str);
+    return g.ToRegularizedString();
   }
 }

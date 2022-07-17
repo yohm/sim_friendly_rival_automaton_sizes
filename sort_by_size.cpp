@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
       std::cout << Join(v2, ";") << std::endl;
 
       if (m2.size() < 6) {
-        std::string serialized = DFA_translator::SerializeToString(line.c_str());
+        std::string serialized = DFA_translator::SerializeSimpleAutom(line.c_str());
         if (serialized_automatons.find(serialized) == serialized_automatons.end()) {
           serialized_automatons[serialized] = std::make_pair(line, 0);
         }

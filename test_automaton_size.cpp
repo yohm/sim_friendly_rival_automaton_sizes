@@ -48,10 +48,13 @@ void EqualityTest(const char str[64]) {
 
 void SerializeTest() {
   const char* str = "cdcdcdcdcccdcccddccdcdcdcccdcccdcdcdcdcdcccdcccddccdcdcdcccdcccd";
-  auto partition = DFA_translator::MinimizedPartitionSimple(str);
-  IC(partition);
-  auto serialized = DFA_translator::SerializeToString(str);
+  // auto partition = DFA_translator::MinimizedPartitionSimple(str);
+  // IC(partition);
+  auto serialized = DFA_translator::SerializeSimpleAutom(str);
   IC(serialized);
+
+  const char* str2 = "cdcdcdcddcdddcddcccdcdccccddddcdcdcdcdcddcdddcddcdcccdccddcdd";
+  IC(DFA_translator::SerializeSimpleAutom(str2));
 }
 
 
@@ -79,7 +82,7 @@ int main(int argc, char* argv[]) {
     }
     if (!is_full) {
       std::cout << "Serialized:" << std::endl;
-      std::cout << DFA_translator::SerializeToString(line.c_str()) << std::endl;
+      std::cout << DFA_translator::SerializeSimpleAutom(line.c_str()) << std::endl;
     }
   }
   else {
