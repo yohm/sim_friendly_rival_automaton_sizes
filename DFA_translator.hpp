@@ -289,9 +289,59 @@ namespace DFA_translator {
         }
         add_node(k);
       }
+
+      // calculate path from 8 & 55
+      std::vector<size_t> path_8 = _TracePath(str, 8);
+      for (auto& n : path_8) {
+        size_t n_co = ((n & 0b000111) << 3) | ((n & 0b111000) >> 3);
+        auto p = std::make_pair(find_root(n), find_root(n_co));
+        bool found = (std::find(path_from_8.begin(), path_from_8.end(), p) != path_from_8.end());
+        path_from_8.push_back(p);
+        if (found) break;
+      }
+      std::vector<size_t> path_55 = _TracePath(str, 55);
+      for (auto& n : path_55) {
+        size_t n_co = ((n & 0b000111) << 3) | ((n & 0b111000) >> 3);
+        auto p = std::make_pair(find_root(n), find_root(n_co));
+        bool found = (std::find(path_from_55.begin(), path_from_55.end(), p) != path_from_55.end());
+        path_from_55.push_back(p);
+        if (found) break;
+      }
     }
+
+    std::vector<size_t> _TracePath(const char str[64], size_t init) {
+      std::vector<size_t> path;
+      size_t node_idx = init;
+      auto NextITGState = [&str](size_t n) -> size_t {
+        size_t n_co = ((n & 0b000111) << 3) | ((n & 0b111000) >> 3); // state for the co-player
+        size_t nb = (n & 0b011011) << 1;
+        if (str[n] == 'c' && str[n_co] == 'c') {
+          return nb;
+        } else if (str[n] == 'c' && str[n_co] == 'd') {
+          return nb | 0b000001;
+        } else if (str[n] == 'd' && str[n_co] == 'c') {
+          return nb | 0b001000;
+        } else {
+          return nb | 0b001001;
+        }
+      };
+      // if node_idx is not included in path, add it
+      path.push_back(node_idx);
+      while (true) {
+        node_idx = NextITGState(node_idx);
+        auto it = std::find(path.begin(), path.end(), node_idx);
+        if (it == path.end()) {
+          path.push_back(node_idx);
+        } else {
+          break;
+        }
+      }
+      return path;
+    }
+
     std::vector<std::pair<size_t,char>> nodes; // nodes[i] = (node_idx, node_label)
     std::map<size_t,std::vector<size_t>> edges;
+    std::vector<std::pair<size_t,size_t> > path_from_8, path_from_55;
 
     std::string ToString() const {
       std::stringstream ss;
@@ -301,6 +351,14 @@ namespace DFA_translator {
           ss << "," << j;
         }
         ss <<";";
+      }
+      ss << ' ';
+      for (auto& [k,v] : path_from_8) {
+        ss << k << "," << v << ";";
+      }
+      ss << ' ';
+      for (auto& [k,v] : path_from_55) {
+        ss << k << "," << v << ";";
       }
       return ss.str();
     }
@@ -342,6 +400,18 @@ namespace DFA_translator {
         }
       }
       edges = new_edges;
+
+      decltype(path_from_8) new_path_from_8;
+      for (auto& [k,v] : path_from_8) {
+        new_path_from_8.push_back(std::make_pair(m[k], m[v]));
+      }
+      path_from_8 = new_path_from_8;
+
+      decltype(path_from_55) new_path_from_55;
+      for (auto& [k,v] : path_from_55) {
+        new_path_from_55.push_back(std::make_pair(m[k], m[v]));
+      }
+      path_from_55 = new_path_from_55;
 
       // sort nodes by index
       std::sort(nodes.begin(), nodes.end(),

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(sim_friendly_rival_automaton_sizes)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(Eigen3 REQUIRED)
