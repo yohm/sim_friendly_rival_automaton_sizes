@@ -57,9 +57,15 @@ def make_dot(strategy, partition, simplified=False):
         edge_colors = {'cc': 'gray', 'cd': 'salmon', 'dc': 'skyblue', 'dd': 'gray'}
         color = edge_colors[label]
         style = 'solid' if strategy[n] == label[0] else 'dashed'
-        if simplified and style == 'dashed':
-          continue   # do not add a dashed edge for simplified automaton
-        dot.edge(str(n), str(partition[d]), label=label, color=color, style=style)
+        draw_edge = True
+        if simplified:
+          draw_edge = False if style == 'dashed' else True
+          if n == 0 and label == 'dc':
+            draw_edge = True
+          if n == partition[63] and label == 'cd':
+            draw_edge = True
+        if draw_edge:
+          dot.edge(str(n), str(partition[d]), label=label, color=color, style=style)
   return dot
 
 make_dot(strategy, partition_f, simplified=False)
