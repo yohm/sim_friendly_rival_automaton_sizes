@@ -54,7 +54,8 @@ def make_dot(strategy, partition, simplified=False):
     if idx == n:      # if n is a root node
       for dest_idx,d in enumerate(dests_graph[n]):
         label = ['cc', 'cd', 'dc', 'dd'][dest_idx]
-        color = color_list[0] if label[1] == 'c' else color_list[1]
+        edge_colors = {'cc': 'gray', 'cd': 'salmon', 'dc': 'skyblue', 'dd': 'gray'}
+        color = edge_colors[label]
         style = 'solid' if strategy[n] == label[0] else 'dashed'
         if simplified and style == 'dashed':
           continue   # do not add a dashed edge for simplified automaton
