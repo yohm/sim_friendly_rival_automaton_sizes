@@ -4,4 +4,5 @@ fugaku_job.sh.*
 automatons_*
 stdout_merged
 serialized
+simple_automaton_count*
 *.pdf

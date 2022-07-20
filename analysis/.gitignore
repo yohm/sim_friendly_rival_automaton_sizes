@@ -1,3 +1,5 @@
 Pipfile.lock
-automaton*
+*.pdf
+autom_*
+automaton_*
 simplified_automaton_*

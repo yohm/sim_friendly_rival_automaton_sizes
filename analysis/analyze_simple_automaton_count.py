@@ -1,12 +1,22 @@
 #%%
-from collections import defaultdict
 import graphviz
 from collections import defaultdict
-
 # %%
-autom = "0,c,0,1,2;1,d,0,1,0;2,d,2,3;3,c,0,0;"
-recov_path = "2,1;3,1;0,0;0,0;"
-escape_path = "0,0;0,0;"
+# load file
+file = open("../job/simple_automaton_count_merged", "r")
+
+histo = defaultdict(int)
+automs = defaultdict(set)
+
+# for each line in file, split by spaces
+for line in file:
+  autom,recov,escape,count = line.split()
+  key = recov + ' ' + escape
+  histo[key] += int(count)
+  automs[key].add(autom)
+
+histo, automs
+# %%
 # %%
 def visualize_automaton(autom, attr=None, graph_label=None):
   if not attr:
@@ -34,22 +44,14 @@ def visualize_automaton(autom, attr=None, graph_label=None):
       dot.edge(n[0], n[4], label=label, color=label_color[label], style='dashed')
   return dot
 
-label = f"recovery path: {recov_path}\nescape path: {escape_path}"
-visualize_automaton(autom, graph_label=label)
+visualize_automaton("0,c,0,1,2;1,d,3,1,2;2,c,0,3;3,d,3,0;", graph_label="2,1;3,3;0,0;0,0; 2,3;3,3;0,0;0,0;")
 # %%
-recovery_path_count = defaultdict(int)
-escape_path_count = defaultdict(int)
-with open("../job/serialized") as f:
-  lines = f.readlines()
-  for idx,line in enumerate(lines):
-    autom,recov_path,escape_path,strategy,freq = line.split(' ')
-    recovery_path_count[recov_path] += 1
-    escape_path_count[(recov_path,escape_path)] += 1
-    label = f"recovery path: {recov_path}\nescape path: {escape_path}"
-    dot = visualize_automaton(autom, attr=f"{autom}_{strategy}", graph_label=label)
-    dot.render(f"simplified_automaton_{idx}")
-# %%
-recovery_path_count, escape_path_count
-# %%
-visualize_automaton("0,c,0,1,2;1,d,3,1,2;2,c,1,3;3,d,2,0;")
+from IPython import display
+sorted_histo = sorted(histo.items(), key=lambda x: x[0])
+
+for key, value in sorted_histo:
+  autom = list(automs[key])[0]
+  dot = visualize_automaton(autom, graph_label=f"{key} {value}")
+  display.display_svg(dot)
+  #display.SVG(dot.pipe('svg'))
 # %%
