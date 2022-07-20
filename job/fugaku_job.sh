@@ -7,4 +7,4 @@
 
 export OMP_NUM_THREADS=12
 
-mpiexec -stdout-proc ./%/1000R/stdout -stderr-proc ./%/1000R/stderr ../../main.out dis.passed 7 0
+mpiexec -stdout-proc ./%/1000R/stdout -stderr-proc ./%/1000R/stderr ../../main.out dis.passed 7 4
